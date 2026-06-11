@@ -1,0 +1,119 @@
+/*
+ * DANBAKARYA FLASHING TOOL V0.0.0.1
+ * Wannan shiri ne na flashing ta amfani da yaren Tauraro.
+ */
+
+// Shigar da abubuwan da ake bukata daga runtime na Tauraro
+extern "C" def _tr_enable_vt100()
+extern "C" def _tr_thread_sleep_ms(ms: i64)
+extern "C" def file_exists(path: str) -> bool
+extern "C" def _tr_print_raw(s: str)
+extern "C" def _tr_int_to_str(n: i64) -> str
+extern "C" def _tr_popen_read(cmd: str) -> str
+extern "C" def _tr_strlen(s: str) -> i64
+extern "C" def _tr_str_split(s: str, sep: str) -> List_str
+extern "C" def _tr_str_strip(s: str) -> str
+extern "C" def _tr_str_starts_with(s: str, pre: str) -> bool
+extern "C" def _tr_str_slice(s: str, start: i64, end: i64) -> str
+extern "C" def _tr_str_to_int(s: str) -> i64
+
+def main() {
+    // Kunna launuka na terminal (ANSI colors) don shirin ya yi kyau da ban sha'awa
+    _tr_enable_vt100()
+
+    // Banner na shirin
+    print("\033[96m============================================================\033[0m")
+    print("\033[92m            DANBAKARYA FLASHING TOOL V0.0.0.1               \033[0m")
+    print("\033[96m============================================================\033[0m")
+    print("Mawallafi: DANBAKARYA\n")
+
+    // Karbar sunan firmware daga wajen mai amfani
+    let firmware_path = input("Saka sunan Firmware file (misali: update.bin): ")
+
+    if firmware_path == "" {
+        print("\033[31mKuskure: Ba ka saka sunan file ba!\033[0m")
+        return
+    }
+
+    // Duba idan file din yana nan a rumbun kwamfuta kafin fara aiki
+    if !file_exists(firmware_path) {
+        print("\033[31mKuskure: Ba a sami wannan file din ba: " + firmware_path + "\033[0m")
+        return
+    }
+
+    print("\n\033[36mAn gano file:\033[0m " + firmware_path)
+
+    print("Ana bincikar na'urar USB (Scanning for USB device)...")
+    
+    // Amfani da wmic don nemo USB drives (drivetype=2)
+    let usb_info = _tr_popen_read("wmic logicaldisk where drivetype=2 get deviceid")
+    // Amfani da wmic don nemo USB drives (drivetype=2) da girman su
+    let usb_info_raw = _tr_popen_read("wmic logicaldisk where drivetype=2 get Caption,Size,FreeSpace /value")
+
+    if _tr_strlen(usb_info) < 5 {
+    let lines = _tr_str_split(usb_info_raw, "\n")
+    let current_caption = ""
+    let current_size_bytes = 0i64
+    let current_freespace_bytes = 0i64
+    let found_usb = false
+
+    for i in range(0, lines.len) {
+        let line = lines.get(i)
+        let trimmed_line = _tr_str_strip(line)
+
+        if _tr_str_starts_with(trimmed_line, "Caption=") {
+            current_caption = _tr_str_slice(trimmed_line, 8, _tr_strlen(trimmed_line))
+        } else if _tr_str_starts_with(trimmed_line, "Size=") {
+            current_size_bytes = _tr_str_to_int(_tr_str_slice(trimmed_line, 5, _tr_strlen(trimmed_line)))
+        } else if _tr_str_starts_with(trimmed_line, "FreeSpace=") {
+            current_freespace_bytes = _tr_str_to_int(_tr_str_slice(trimmed_line, 10, _tr_strlen(trimmed_line)))
+        }
+
+        // Idan an sami cikakken bayani game da drive, nuna shi
+        if current_caption != "" && current_size_bytes > 0 && current_freespace_bytes >= 0 {
+            let size_gb = current_size_bytes / (1024 * 1024 * 1024)
+            let freespace_gb = current_freespace_bytes / (1024 * 1024 * 1024)
+            print("\033[32mAn gano na'urar USB:\033[0m " + current_caption + " - Girman: " + _tr_int_to_str(size_gb) + "GB, Saura: " + _tr_int_to_str(freespace_gb) + "GB")
+            found_usb = true
+            current_caption = "" // Sake saita don na'ura ta gaba
+            current_size_bytes = 0i64
+            current_freespace_bytes = 0i64
+        }
+    }
+
+    if !found_usb {
+        print("\033[31mKuskure: Ba a sami na'urar USB ba! Da fatan za a saka USB drive kafin fara flashing.\033[0m")
+        return
+    }
+
+    print("\033[32mAn gano na'ura!\033[0m\n" + usb_info)
+    _tr_thread_sleep_ms(1500)
+
+    print("\n\033[93mGARADI: Kar ka cire na'urar yayin da ake gudanar da flashing!\033[0m")
+    print("Ana fara flashing yanzu...\n")
+
+    // Gudanar da flashing (Simulated process)
+    for i in range(0, 101, 5) {
+        // Gina graphical progress bar
+        let bar = ""
+        let completed = i / 5
+        
+        for j in range(0, completed) {
+            bar = bar + "█"
+        }
+        for j in range(completed, 20) {
+            bar = bar + "░"
+        }
+
+        // Nuna progress bar a layi daya ta amfani da \r don ya rika canzawa
+        _tr_print_raw("\r\033[32mProgress: [" + bar + "] " + _tr_int_to_str(i) + "%\033[0m")
+        
+        // Dan jinkiri don kwaikwayon lokacin da flashing din ke dauka
+        _tr_thread_sleep_ms(350)
+    }
+
+    print("\n\n\033[92mKYAKKYAWAN SAKAMAKO: An kammala flashing din " + firmware_path + " cikin nasara!\033[0m")
+    print("\033[96m============================================================\033[0m")
+    
+    input("\nDanna ENTER don fita daga shirin...")
+}
