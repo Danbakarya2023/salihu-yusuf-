@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ha">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TRACKING DASHBOARD — DANBAKARYA</title>
+  <meta name="description" content="Shafin nuna cewa wayar na cikin tracking — dashboard na gani da logs." />
+
+  <style>
+    :root{
+      --bg:#020406;
+      --accent:#00ffcc;
+      --muted:#99ffee;
+      --danger:#ff3b30;
+      --panel:#071011;
+      --glass: rgba(255,255,255,0.03);
+      --radius:12px;
+      --max-width:1100px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter, "Segoe UI", Roboto, system-ui, -apple-system, "Segoe UI Emoji", monospace;
+      background: radial-gradient(ellipse at top left, #041218 0%, var(--bg) 60%);
+      color:var(--accent);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:24px;
+      display:flex;
+      justify-content:center;
+    }
+
+    .wrap{
+      width:100%;
+      max-width:var(--max-width);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      border-radius:16px;
+      padding:18px;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.6);
+      border:1px solid rgba(0,255,204,0.06);
+    }
+
+    header{
+      display:flex;
+      gap:16px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:12px;
+    }
+    .brand{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .logo{
+      width:56px;height:56px;border-radius:10px;
+      background:linear-gradient(135deg,var(--accent),#007f7f);
+      display:flex;align-items:center;justify-content:center;font-weight:700;color:#002;
+      box-shadow:0 6px 18px rgba(0,255,204,0.08);
+    }
+    h1{margin:0;font-size:18px;color:var(--accent)}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    .actions{display:flex;gap:8px;align-items:center}
+    .btn{
+      padding:8px 12px;border-radius:999px;background:transparent;border:1px solid rgba(0,255,204,0.12);
+      color:var(--accent);text-decoration:none;font-size:13px;
+    }
+    .btn.warn{background:var(--danger);border:none;color:white;box-shadow:0 6px 20px rgba(255,59,48,0.18)}
+
+    /* main layout */
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 360px;
+      gap:18px;
+    }
+
+    @media (max-width:980px){
+      .grid{grid-template-columns:1fr; padding-bottom:12px}
+      header{flex-direction:column;align-items:flex-start;gap:8px}
+    }
+
+    /* panels */
+    .panel{
+      background:linear-gradient(180deg,var(--panel), rgba(0,0,0,0.06));
+      border-radius:var(--radius);
+      padding:14px;
+      border:1px solid rgba(0,255,204,0.04);
+    }
+    .panel h3{margin:0 0 8px 0;color:var(--accent);font-size:15px}
+    .small{font-size:13px;color:var(--muted)}
+
+    /* warning strip */
+    .warning-strip{
+      display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;
+      background:linear-gradient(90deg,var(--danger),#ff7b6b);
+      color:white;font-weight:700;box-shadow:0 10px 30px rgba(255,59,48,0.16)
+    }
+    .blink {animation:blink 1s steps(2,end) infinite}
+    @keyframes blink{50%{opacity:0.25}}
+
+    /* radar visual */
+    .radar{
+      width:100%;height:220px;border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      background:radial-gradient(circle at center, rgba(0,255,204,0.03), transparent 40%);
+      position:relative;overflow:hidden;
+    }
+    .radar .circle{
+      width:180px;height:180px;border-radius:50%;border:2px dashed rgba(0,255,204,0.08);
+      position:relative;display:flex;align-items:center;justify-content:center;
+      box-shadow:0 8px 30px rgba(0,255,204,0.02);
+    }
+    .sweep{
+      position:absolute;width:320px;height:320px;left:50%;top:50%;transform:translate(-50%,-50%) rotate(0deg);
+      background: conic-gradient(rgba(0,255,204,0.14), rgba(0,255,204,0.02) 50%, transparent 60%);
+      border-radius:50%; animation:spin 5s linear infinite; mix-blend-mode:screen; opacity:0.9;
+    }
+    @keyframes spin {to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+    /* logs */
+    .logs{height:220px;overflow:auto;background:rgba(0,0,0,0.25);padding:10px;border-radius:8px;border:1px solid rgba(0,255,204,0.02)}
+    .log-line{font-family:monospace;font-size:13px;color:#dff; margin:6px 0; white-space:pre-wrap}
+
+    /* location */
+    .coords{display:flex;gap:8px;flex-wrap:wrap}
+    .coord-box{flex:1;min-width:120px;padding:10px;border-radius:8px;background:var(--glass);border:1px solid rgba(255,255,255,0.02);}
+
+    /* small widgets */
+    .row{display:flex;gap:12px}
+    .col{flex:1}
+    .map-iframe{width:100%;height:220px;border-radius:8px;border:0}
+
+    footer{margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+  </style>
+</head>
+<body>
+  <main class="wrap" role="main" aria-labelledby="title">
+    <header>
+      <div class="brand">
+        <div class="logo">D</div>
+        <div>
+          <h1 id="title">DANBAKARYA TRACKING DASHBOARD</h1>
+          <p class="lead">Wannan shafi yana nuna cewa na'urar tana cikin <strong>TRACKING MODE</strong>. Ka tabbata ka tabbatar da mallakar kafin kowane aiki.</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="small" id="clock">Loading time...</div>
+        <a class="btn" href="#" onclick="alert('Login page not set')">Login</a>
+        <a class="btn warn" href="#" onclick="alert('Contact: 09032948833')">Tuntuɓi</a>
+      </div>
+    </header>
+
+    <section class="grid" aria-label="Dashboard content">
+      <!-- left / main column -->
+      <div>
+        <!-- Warning strip -->
+        <div class="panel" style="margin-bottom:12px;">
+          <div class="warning-strip">
+            <div style="font-size:18px">⚠</div>
+            <div>
+              <div class="blink">KA-YI-HATTARA — NA'URAR NA CIKI <span style="text-decoration:underline">TRACKING MODE</span></div>
+              <div class="small" style="margin-top:4px">Flashing ko canza na'ura ba tare da tabbaci ba zai iya zama doka-ƙeta. Ka kira idan akwai damuwa: <strong>09032948833</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- radar + logs row -->
+        <div class="row" style="margin-bottom:12px">
+          <div class="col panel">
+            <h3>📶 Signal Radar</h3>
+            <div class="radar" aria-hidden="true">
+              <div class="sweep" style="opacity:0.85"></div>
+              <div class="circle" aria-hidden="true">
+                <div style="text-align:center">
+                  <div style="font-size:20px;font-weight:700;color:var(--accent)">ACTIVE</div>
+                  <div class="small">Signal: Strong</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col panel">
+            <h3>📄 Network Logs (Live)</h3>
+            <div class="logs" id="logs" aria-live="polite" role="log"></div>
+            <div style="margin-top:8px" class="small">Wannan abu yana nuna fake logs don demo. A ainihi, logs na ajiye a server da yake da tsaro.</div>
+          </div>
+        </div>
+
+        <!-- phone list scrolling -->
+        <div class="panel" style="margin-bottom:12px">
+          <h3>🔍 Scanning Phones Database</h3>
+          <div id="phones" class="logs" style="height:140px;overflow:auto"></div>
+          <div class="small" style="margin-top:8px">Ana nuna samfurin phone model da serial don misali kawai — kada a yi amfani da wannan a matsayin bayanin mutum.</div>
+        </div>
+
+        <!-- map + hologram row -->
+        <div class="row">
+          <div class="col panel" style="min-width:280px">
+            <h3>📍 Location</h3>
+            <div class="coords" style="margin-bottom:8px">
+              <div class="coord-box">
+                <div class="small">Latitude</div>
+                <div id="lat" style="font-weight:700">--</div>
+              </div>
+              <div class="coord-box">
+                <div class="small">Longitude</div>
+                <div id="lon" style="font-weight:700">--</div>
+              </div>
+              <div class="coord-box">
+                <div class="small">Status</div>
+                <div id="status" style="font-weight:700">Tracking</div>
+              </div>
+            </div>
+
+            <iframe
+              id="map"
+              class="map-iframe"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3973.7601205765316!2d6.698626814762391!3d6.200891395502237!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x10438b3f0e3018ed%3A0xb7bd798c6a80e90f!2sAsaba%2C%20Delta!5e0!3m2!1sen!2sng!4v1665073902694!5m2!1sen!2sng">
+            </iframe>
+          </div>
+
+          <div class="col panel" style="min-width:240px">
+            <h3>📷 Hologram / QR Scanner</h3>
+            <div id="reader" style="height:220px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);display:flex;align-items:center;justify-content:center">
+              <div class="small">Scanner placeholder — zaku iya haɗa html5-qrcode library idan kuna so</div>
+            </div>
+            <div style="margin-top:8px" class="small">Idan kana son scanner, shigar da script na <code>html5-qrcode</code> kuma maye gurbin wannan placeholder.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- right / side column -->
+      <aside>
+        <div class="panel" style="margin-bottom:12px">
+          <h3>Bayani</h3>
+          <p class="small">Wannan shafi yana nuna misali na dashboard. Ka tabbatar ka sauya duk wani bayanin sirri (lambobi, hotuna, iframe) kafin ka yi amfani da shi a ainihin yanayin aiki.</p>
+        </div>
+
+        <div class="panel" style="margin-bottom:12px">
+          <h3>Quick Info</h3>
+          <p class="small"><strong>Owner:</strong> Danbakarya Phone Repair</p>
+          <p class="small"><strong>Hotline:</strong> 09032948833</p>
+          <p class="small"><strong>Notice:</strong> Kada a yi flashing ba tare da tabbaci ba.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Actions</h3>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <a class="btn" href="#" onclick="copyContact()">Copy Hotline</a>
+            <a class="btn" href="#" onclick="downloadDemo()">Download Report (demo)</a>
+            <a class="btn warn" href="#" onclick="alert('Report sent to admin')">Report Case</a>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <footer>
+      <div class="small">© Danbakarya — Ka tabbata duk matakan doka an bi kafin aiwatar da aiki.</div>
+    </footer>
+  </main>
+
+  <script>
+    // Clock
+    function updateClock(){ document.getElementById('clock').textContent = new Date().toLocaleString(); }
+    setInterval(updateClock,1000); updateClock();
+
+    // Fake dynamic coords (for demo)
+    function randomCoord(base,offset=0.02){
+      return (base + (Math.random()*offset - offset/2)).toFixed(6);
+    }
+    function updateLocation(){
+      document.getElementById('lat').textContent = randomCoord(6.200891); // Asaba-ish
+      document.getElementById('lon').textContent = randomCoord(6.698627);
+    }
+    setInterval(updateLocation,3000);
+    updateLocation();
+
+    // Fake logs generator
+    const logsEl = document.getElementById('logs');
+    const phonesEl = document.getElementById('phones');
+
+    const fakeEvents = [
+      "READING FLASHING PHONE ...",
+      "FORMAT DATA RESET AND FRP CHECK...",
+      "Intercepted call signal...",
+      "SMS data packet captured...",
+      "GPS position updated...",
+      "New device ID found...",
+      "Voice pattern analysis running...",
+      "Uploading encrypted logs...",
+      "IMEI status: ACTIVE",
+      "Please contact: 09032948833"
+    ];
+    const phoneModels = [
+      "iPhone 14 Pro Max - SN: 9X82G4H2L0",
+      "Samsung Galaxy S23 Ultra - SN: 7D92F5B3A1",
+      "Tecno Phantom X2 - SN: 1H73D9P0K4",
+      "Infinix Zero Ultra - SN: 4L89Z6Q2T8",
+      "Huawei P50 Pro - SN: 6K93B7L1R5",
+      "Google Pixel 7 Pro - SN: 2N58F9K7S3",
+      "Nokia X30 - SN: 8H25R6M9T0",
+      "Itel S23 Plus - SN: 3D64K8P1Z9",
+      "OnePlus 11 - SN: 5J79L3Q2M1",
+      "Sony Xperia 5 IV - SN: 0P41T7R2B8"
+    ];
+
+    function addLog(){
+      const line = `[${new Date().toLocaleTimeString()}] ${fakeEvents[Math.floor(Math.random()*fakeEvents.length)]}`;
+      const d = document.createElement('div'); d.className='log-line'; d.textContent=line;
+      logsEl.appendChild(d);
+      logsEl.scrollTop = logsEl.scrollHeight;
+    }
+    function addPhoneLine(){
+      const p = phoneModels[Math.floor(Math.random()*phoneModels.length)];
+      const d = document.createElement('div'); d.className='log-line'; d.textContent=p;
+      phonesEl.appendChild(d);
+      phonesEl.scrollTop = phonesEl.scrollHeight;
+    }
+    setInterval(addLog,2000);
+    setInterval(addPhoneLine,600);
+    // seed
+    for(let i=0;i<6;i++){ addLog(); addPhoneLine(); }
+
+    // Actions
+    function copyContact(){
+      navigator.clipboard?.writeText("09032948833").then(()=> alert("Number copied: 09032948833")).catch(()=> alert("Copy not supported"));
+    }
+    function downloadDemo(){
+      const blob = new Blob(["Demo report\nGenerated at: "+new Date().toLocaleString()+"\nNote: demo only."],{type:'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'report.txt'; document.body.appendChild(a); a.click();
+      a.remove(); URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📍 Device Tracker Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 0;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 0 20px rgba(0,255,0,0.1);
+    }
+
+    h2, h3 {
+      color: #00ff99;
+    }
+
+    .status {
+      color: #00ff99;
+      font-weight: bold;
+    }
+
+    .signal-box {
+      background: #000;
+      color: #00ff00;
+      font-family: monospace;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    #map {
+      height: 450px;
+      margin-top: 20px;
+      border-radius: 10px;
+    }
+
+    /* Pulsing red marker */
+    .pulse-marker {
+      position: absolute;
+      background: red;
+      border-radius: 50%;
+      height: 18px;
+      width: 18px;
+      transform: translate(-9px, -9px);
+      animation: pulse 1.5s infinite;
+      box-shadow: 0 0 0 rgba(204, 0, 0, 0.4);
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.5);
+      }
+      70% {
+        box-shadow: 0 0 0 20px rgba(255, 0, 0, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+      }
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .info-grid p {
+      margin: 5px 0;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h2>📡 Real-Time Mobile Tracking Interface</h2>
+      <p class="status">Tracking Status: <span style="color:lime">ACTIVE</span></p>
+      <p>Signal Monitoring | Network Code: <strong>#SNW-<span id="dynamicCode">LOADING</span></strong></p>
+
+      <div class="info-grid">
+        <div>
+          <h3>📱 Device Info</h3>
+           <p><strong>Name found:</strong> manman uwar nauyi</p>
+          <p><strong>Phone Number:</strong> 112xxxx</p>
+          <p><strong>Last Seen:</strong> Asaba, Delta State</p>
+          <p><strong>Current Location:</strong> Ogwashi-Uku, Delta State</p>
+          <p><strong>Tracking Type:</strong> Live GPS Monitoring</p>
+           <p><strong>agbor asaba delta :</strong>09068769290</p>
+        </div>
+        <div>
+          <h3>🌐 Network Details</h3>
+          <p><strong>IP Address:</strong> 197.210.58.XXX</p>
+          <p><strong>GPS:</strong> 6.1831° N, 6.5244° E</p>
+          <p><strong>Distance:</strong> ~24km (Asaba ➜ Ogwashi)</p>
+          <p><strong>Mode:</strong> Stealth Active Scan</p>
+        </div>
+      </div>
+
+      <div id="map"></div>
+
+      <h3>🔎 Tracking Logs</h3>
+      <div class="signal-box" id="log">
+        Initializing satellite link...<br>
+        Signal acquired successfully...<br>
+        Location trace locked on...<br>
+        Movement being monitored 24/7...<br>
+        checking data info...<br>
+        imei processing data ...<br>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const asaba = [6.1968, 6.7080];
+    const ogwashi = [6.1831, 6.5244];
+
+    const map = L.map('map').setView(ogwashi, 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Custom pulsing marker icon
+    const pulsingIcon = L.divIcon({
+      className: 'pulse-marker'
+    });
+
+    // Phone icon (optional marker with popup)
+    L.marker(ogwashi, { icon: pulsingIcon }).addTo(map)
+      .bindPopup("🔴 Live Signal: Device is HERE").openPopup();
+
+    // Path from Asaba to Ogwashi
+    const route = L.polyline([asaba, ogwashi], {
+      color: 'lime',
+      weight: 4,
+      dashArray: '8, 8',
+      opacity: 0.6
+    }).addTo(map).bindPopup("📍 Movement Route");
+
+    // Simulate dynamic network code
+    function generateSignalCode() {
+      const code = Math.floor(100000 + Math.random() * 900000);
+      document.getElementById('dynamicCode').innerText = code;
+    }
+    setInterval(generateSignalCode, 3000);
+    generateSignalCode();
+  </script>
+</body>
+</html>
