@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phone Tracking Alert</title>
+<style>
+    body {
+        background-color: black;
+        color: #00ff00;
+        font-family: monospace;
+        padding: 20px;
+    }
+    #phones {
+        font-size: 20px;
+        white-space: pre-line;
+        height: 200px;
+        overflow: hidden;
+    }
+    #alert {
+        background: red;
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        padding: 15px;
+        margin-top: 20px;
+        border-radius: 5px;
+        animation: blink 1s infinite;
+    }
+    @keyframes blink {
+        0%, 50%, 100% { opacity: 1; }
+        25%, 75% { opacity: 0; }
+    }
+</style>
+</head>
+<body>
+
+<h2>🔍 Scanning Phones Database...</h2>
+<div id="phones"></div>
+
+<div id="alert">
+    ⚠ Anyone who provides information or exposes the person who brought or stole the phone will receive a big reward from us — ₦120,000 cash.  
+    📞 Call: 09032948833
+</div>
+
+<script>
+const phoneModels = [
+    "iPhone 14 Pro Max - SN: 9X82G4H2L0",
+    "Samsung Galaxy S23 Ultra - SN: 7D92F5B3A1",
+    "Tecno Phantom X2 - SN: 1H73D9P0K4",
+    "Infinix Zero Ultra - SN: 4L89Z6Q2T8",
+    "Huawei P50 Pro - SN: 6K93B7L1R5",
+    "Google Pixel 7 Pro - SN: 2N58F9K7S3",
+    "Nokia X30 - SN: 8H25R6M9T0",
+    "Itel S23 Plus - SN: 3D64K8P1Z9",
+    "OnePlus 11 - SN: 5J79L3Q2M1",
+    "Sony Xperia 5 IV - SN: 0P41T7R2B8"
+];
+
+function fakeRead() {
+    const phonesDiv = document.getElementById("phones");
+    setInterval(() => {
+        let randomPhone = phoneModels[Math.floor(Math.random() * phoneModels.length)];
+        phonesDiv.innerHTML += randomPhone + "\n";
+        phonesDiv.scrollTop = phonesDiv.scrollHeight;
+    }, 500);
+}
+
+fakeRead();
+</script>
+
+</body>
+</html>

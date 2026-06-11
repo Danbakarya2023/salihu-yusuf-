@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Surveillance Interface</title>
+  <style>
+    body {
+      background-color: #000;
+      color: #00ffcc;
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    header {
+      background-color: #111;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 2px solid #00ffcc;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+      color: #00ffcc;
+      text-shadow: 0 0 8px #00ffcc;
+    }
+
+    .dashboard {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      padding: 30px;
+    }
+
+    .panel {
+      background-color: #111;
+      border: 1px solid #00ffcc;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 15px;
+      width: 300px;
+      box-shadow: 0 0 10px #00ffcc44;
+    }
+
+    .radar {
+      width: 200px;
+      height: 200px;
+      border: 2px solid #00ffcc;
+      border-radius: 50%;
+      margin: auto;
+      position: relative;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 10px #00ffcc;
+      }
+      50% {
+        box-shadow: 0 0 25px #00ffcc;
+      }
+      100% {
+        box-shadow: 0 0 10px #00ffcc;
+      }
+    }
+
+    .warning {
+      color: red;
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .log-box {
+      height: 150px;
+      overflow-y: auto;
+      background-color: #000;
+      border: 1px solid #00ffcc;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    .timestamp {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 16px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>📡 ACTIVE PHONE SURVEILLANCE INTERFACE</h1>
+    <div class="timestamp" id="clock">Loading time...</div>
+  </header>
+
+  <div class="dashboard">
+    <div class="panel">
+      <h2>🔴 Warning</h2>
+      <div class="warning">This device is under active surveillance.</div>
+    </div>
+
+    <div class="panel">
+      <h2>📍 Location</h2>
+      <p>Latitude: <span id="lat">--</span></p>
+      <p>Longitude: <span id="lon">--</span></p>
+      <p>Signal Strength: Strong</p>
+    </div>
+
+    <div class="panel">
+      <h2>📶 Signal Radar</h2>
+      <div class="radar"></div>
+    </div>
+
+    <div class="panel">
+      <h2>📄 Network Logs</h2>
+      <div class="log-box" id="logs"></div>
+    </div>
+  </div>
+
+  <script>
+    // Simulated location coordinates
+    function randomCoord(base, offset = 0.001) {
+      return (base + (Math.random() * offset - offset / 2)).toFixed(6);
+    }
+
+    function updateLocation() {
+      document.getElementById("lat").textContent = randomCoord(12.9716); // base lat
+      document.getElementById("lon").textContent = randomCoord(77.5946); // base lon
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("clock").textContent = now.toLocaleString();
+    }
+
+    function addLog() {
+      const logBox = document.getElementById("logs");
+      const now = new Date();
+      const fakeEvents = [
+        "Intercepted call signal...",
+        "SMS data packet captured...",
+        "GPS position updated...",
+        "New device ID found...",
+        "Voice pattern analysis running...",
+        "Uploading encrypted logs...",
+      ];
+      const randomEvent = fakeEvents[Math.floor(Math.random() * fakeEvents.length)];
+      const line = `[${now.toLocaleTimeString()}] ${randomEvent}`;
+      const newLog = document.createElement("div");
+      newLog.textContent = line;
+      logBox.appendChild(newLog);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    setInterval(updateLocation, 3000);
+    setInterval(updateClock, 1000);
+    setInterval(addLog, 2000);
+
+    // Initial load
+    updateLocation();
+    updateClock();
+  </script>
+
+</body>
+</html>
