@@ -13,8 +13,24 @@ class TrackingDashboard:
         self.root.geometry("1200x900")
         self.root.configure(bg="#020406")
         
+        # Define radar canvas dimensions and center
+        self.radar_canvas_width = 600
+        self.radar_canvas_height = 400
+        self.radar_center_x = self.radar_canvas_width / 2
+        self.radar_center_y = self.radar_canvas_height / 2
         self.angle = 0  # For radar animation
         self.blips = [] # To store radar target points (x, y, opacity)
+        self.target_pos = {"x": 300, "y": 200} # Initial target position
+        self.african_cities = [
+            ("LAGOS", 280, 230), ("KANO", 310, 190), ("CAIRO", 480, 100),
+            ("NAIROBI", 450, 250), ("JOHANNESBURG", 380, 360), ("ACCRA", 260, 240),
+            ("DAKAR", 120, 180), ("ADDIS ABABA", 460, 210), ("LUANDA", 320, 300),
+            ("KINSHASA", 340, 260), ("CASABLANCA", 200, 80), ("KHARTOUM", 400, 170)
+        ]
+        
+        self.scan_x = 0 # Horizontal scanning line
+        self.scan_dir = 5
+
         self.generate_blips()
 
         # Styles & Colors
@@ -84,10 +100,10 @@ class TrackingDashboard:
         left_col.pack(side="left", fill="both", expand=True)
 
         # Radar Panel (Now much bigger)
-        radar_panel = tk.LabelFrame(left_col, text="📡 DEEP-SCAN SIGNAL RADAR", fg=self.accent_color, bg=self.panel_color, font=("Arial", 12, "bold"))
+        radar_panel = tk.LabelFrame(left_col, text="🌍 AFRICA GEOLOCATION SCANNER", fg=self.accent_color, bg=self.panel_color, font=("Arial", 12, "bold"))
         radar_panel.pack(fill="x", padx=5, pady=5)
         
-        self.radar_canvas = tk.Canvas(radar_panel, width=600, height=400, bg="#000", highlightthickness=0)
+        self.radar_canvas = tk.Canvas(radar_panel, width=self.radar_canvas_width, height=self.radar_canvas_height, bg="#000", highlightthickness=0)
         self.radar_canvas.pack()
 
         # Logs and Code Stream Row
@@ -223,8 +239,8 @@ class TrackingDashboard:
         messagebox.showinfo("Tracking Initiated", f"Tracking started for Serial: {self.tracked_serial}")
 
     def generate_blips(self):
-        cx, cy = 300, 200 # Center of the radar
-        radius_limit = 180 # Max radius for blips to appear within the radar circles
+        cx, cy = self.radar_center_x, self.radar_center_y # Center of the radar
+        radius_limit = 180 # Max radius for blips to appear within the radar circles (relative to center)
         for _ in range(20): # Increased number of blips for more activity
             # Generate random angle and distance from center
             angle = random.uniform(0, 2 * math.pi)
@@ -241,17 +257,30 @@ class TrackingDashboard:
             })
 
     def draw_radar(self):
-        cx, cy = 300, 200
+        cx, cy = self.radar_center_x, self.radar_center_y
         self.radar_canvas.delete("all")
-        # Background circles
+        
+        # Draw Grid Lines (Map Style)
+        for i in range(0, 600, 40):
+            self.radar_canvas.create_line(i, 0, i, 400, fill="#001515", width=1)
+        for i in range(0, 400, 40):
+            self.radar_canvas.create_line(0, i, 600, i, fill="#001515", width=1)
+
+        # Tactical Circles
         for r in [50, 100, 150, 190]:
             self.radar_canvas.create_oval(cx-r, cy-r, cx+r, cy+r, outline="#003333", width=1)
-        self.radar_canvas.create_line(cx-200, cy, cx+200, cy, fill="#003333")
-        self.radar_canvas.create_line(cx, cy-200, cx, cy+200, fill="#003333")
+
+        # Draw African Cities Markers
+        for name, x, y in self.african_cities:
+            self.radar_canvas.create_rectangle(x-2, y-2, x+2, y+2, fill="#005555", outline="")
+            if random.random() > 0.9: # Text flickering effect
+                self.radar_canvas.create_text(x+5, y, text=name, fill="#004444", font=("Courier", 7), anchor="w")
 
     def update_data(self):
         try:
-            cx, cy = 300, 200
+            if not self.root.winfo_exists():
+                return
+            cx, cy = self.radar_center_x, self.radar_center_y
             # Update Clock
             self.clock_label.config(text=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             
@@ -263,6 +292,14 @@ class TrackingDashboard:
             self.lon_label.config(text=f"LON: {new_lon:.5f}")
             self.battery_label.config(text=f"Battery: {random.randint(20, 99)}%")
 
+            # Update Target Movement (Searching effect)
+            if random.random() > 0.8:
+                self.target_pos["x"] += random.randint(-15, 15)
+                self.target_pos["y"] += random.randint(-15, 15)
+                # Keep within bounds
+                self.target_pos["x"] = max(50, min(550, self.target_pos["x"]))
+                self.target_pos["y"] = max(50, min(350, self.target_pos["y"]))
+
             # Update Radar Animation
             self.draw_radar()
             self.angle = (self.angle + 4) % 360
@@ -270,8 +307,15 @@ class TrackingDashboard:
             x_end = cx + 190 * math.cos(rad)
             y_end = cy - 190 * math.sin(rad)
             
-            # Sweep line with glow
-            self.radar_canvas.create_line(cx, cy, x_end, y_end, fill=self.accent_color, width=3)
+            # Target Crosshair (The "Searching" Box)
+            tx, ty = self.target_pos["x"], self.target_pos["y"]
+            self.radar_canvas.create_rectangle(tx-15, ty-15, tx+15, ty+15, outline=self.accent_color, width=1)
+            self.radar_canvas.create_line(tx-20, ty, tx+20, ty, fill=self.accent_color)
+            self.radar_canvas.create_line(tx, ty-20, tx, ty+20, fill=self.accent_color)
+            self.radar_canvas.create_text(tx+20, ty-20, text="LOCKING...", fill=self.accent_color, font=("Courier", 8, "bold"))
+            
+            # Sweep line
+            self.radar_canvas.create_line(cx, cy, x_end, y_end, fill=self.accent_color, width=2)
             
             # Update Blips
             for blip in self.blips:
@@ -309,12 +353,14 @@ class TrackingDashboard:
 
             # Randomly add logs
             if random.random() > 0.7:
+                if int(self.log_area.index('end-1c').split('.')[0]) > 50:
+                    self.log_area.delete('1.0', '2.0')
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 if self.tracked_imei1 != "---": # Add tracked device info to logs
-                    self.fake_events[-1] = f"TRACKING ACTIVE FOR SERIAL: {self.tracked_serial}"
-                    
-                event = random.choice(self.fake_events)
-                self.log_area.insert(tk.END, f"[{timestamp}] {event}\n")
+                    current_event = f"TRACKING ACTIVE FOR SERIAL: {self.tracked_serial}"
+                else:
+                    current_event = random.choice(self.fake_events)
+                self.log_area.insert(tk.END, f"[{timestamp}] {current_event}\n")
                 self.log_area.see(tk.END)
                 
             if random.random() > 0.98:
@@ -322,6 +368,8 @@ class TrackingDashboard:
             
             # Randomly add phone database entries
             if random.random() > 0.4:
+                if int(self.phone_area.index('end-1c').split('.')[0]) > 20:
+                    self.phone_area.delete('1.0', '2.0')
                 phone = random.choice(self.phone_models)
                 self.phone_area.insert(tk.END, f"{phone}\n")
                 self.phone_area.see(tk.END)
