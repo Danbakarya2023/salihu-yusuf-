@@ -4,6 +4,8 @@ import random
 import os
 import math
 import socket
+import json
+import winsound  # Standard library for beeps on Windows
 from datetime import datetime
 
 class TrackingDashboard:
@@ -21,17 +23,46 @@ class TrackingDashboard:
         self.angle = 0  # For radar animation
         self.blips = [] # To store radar target points (x, y, opacity)
         self.target_pos = {"x": 300, "y": 200} # Initial target position
-        self.african_cities = [
-            ("LAGOS", 280, 230), ("KANO", 310, 190), ("CAIRO", 480, 100),
-            ("NAIROBI", 450, 250), ("JOHANNESBURG", 380, 360), ("ACCRA", 260, 240),
-            ("DAKAR", 120, 180), ("ADDIS ABABA", 460, 210), ("LUANDA", 320, 300),
-            ("KINSHASA", 340, 260), ("CASABLANCA", 200, 80), ("KHARTOUM", 400, 170)
+        self.asaba_landmarks = [
+            ("NNEBISI ROAD", 250, 220), ("SUMMIT JUNCTION", 320, 150), 
+            ("GOVERNMENT HOUSE", 380, 120), ("OKPANAM ROAD", 200, 100), 
+            ("SHOPRITE ASABA", 350, 250), ("DELTA STATE SECRETARIAT", 400, 180),
+            ("DENNIS OSADEBAY UNI", 450, 300), ("CABLE POINT", 500, 350), 
+            ("INTERIOR LANDS", 150, 280), ("ASABA AIRPORT", 80, 120),
+            ("LANDMARK HOTEL", 280, 180), ("RIVER NIGER BRIDGE", 550, 280)
+        ]
+        self.asaba_buildings = [
+            (260, 230, 8), (275, 215, 7), (250, 200, 6), # Near Nnebisi Road
+            (330, 160, 9), (315, 145, 8), (340, 130, 7), # Near Summit Junction
+            (390, 130, 10), (375, 115, 9), (400, 100, 8), # Near Government House
+            (410, 190, 7), (425, 175, 6), (400, 205, 8), # Near Delta State Secretariat
+            (180, 270, 7), (165, 290, 6), # Interior Lands
+            (90, 110, 10), (70, 130, 9) # Near Airport
+        ]
+        self.red_zones = [
+            ("NIGER BRIDGE BORDER", 550, 280, 45),
+            ("SUMMIT DANGER ZONE", 320, 150, 35),
+            ("AIRPORT RESTRICTED", 80, 120, 50)
         ]
         
+        # Map Transformation States (For Auto Rotation, Zoom, and Movement)
+        self.map_rotation = 0
+        self.map_scale = 1.0
+        self.map_offset_x = 0
+        self.map_offset_y = 0
+        self.target_scale = 1.0
+        self.rot_speed = 0.3
+        self.history = [] # To store tracking session history
+
+        self.satellite_mode = False
+        self.pulse_size = 0 # For live GPS pulse effect
+        
+        self.river_data = [520, 0, 540, 100, 560, 250, 580, 400]
+        self.road_nnebisi = [0, 220, 550, 280]
+        self.road_summit = [320, 0, 320, 400]
+
         self.scan_x = 0 # Horizontal scanning line
         self.scan_dir = 5
-
-        self.generate_blips()
 
         # Styles & Colors
         self.accent_color = "#00ffcc"
@@ -40,12 +71,12 @@ class TrackingDashboard:
         self.panel_color = "#071011"
         self.bg_color = "#020406"
 
-        # Tracked Device Info (will be updated from input fields)
+        # Tracked Device Info
         self.tracked_imei1 = "---"
         self.tracked_imei2 = "---"
         self.tracked_serial = "---"
 
-        # Bayanan da za su rinka fitowa
+        # Data initialization
         self.fake_events = [
             "READING FLASHING PHONE ...",
             "FORMAT DATA RESET AND FRP CHECK...",
@@ -72,6 +103,7 @@ class TrackingDashboard:
             "Sony Xperia 5 IV - SN: 0P41T7R2B8"
         ]
 
+        self.generate_blips()
         self.setup_ui()
         self.update_data()
 
@@ -100,11 +132,16 @@ class TrackingDashboard:
         left_col.pack(side="left", fill="both", expand=True)
 
         # Radar Panel (Now much bigger)
-        radar_panel = tk.LabelFrame(left_col, text="🌍 AFRICA GEOLOCATION SCANNER", fg=self.accent_color, bg=self.panel_color, font=("Arial", 12, "bold"))
-        radar_panel.pack(fill="x", padx=5, pady=5)
-        
-        self.radar_canvas = tk.Canvas(radar_panel, width=self.radar_canvas_width, height=self.radar_canvas_height, bg="#000", highlightthickness=0)
-        self.radar_canvas.pack()
+        radar_panel = tk.LabelFrame(left_col, text="🌍 LIVE LOCATION", fg=self.accent_color, bg=self.panel_color, font=("Arial", 12, "bold"))
+        radar_panel.pack(fill="both", expand=True, padx=5, pady=5)
+
+        self.sat_btn = tk.Button(radar_panel, text="📡 SATELLITE VIEW", command=self.toggle_satellite_view, 
+                                 bg=self.bg_color, fg=self.accent_color, relief="flat", font=("Arial", 8, "bold"))
+        self.sat_btn.place(relx=1.0, x=-10, y=10, anchor="ne")
+
+        # Set background to panel_color for transparency effect
+        self.radar_canvas = tk.Canvas(radar_panel, width=self.radar_canvas_width, height=self.radar_canvas_height, bg=self.panel_color, highlightthickness=0)
+        self.radar_canvas.pack(pady=(35, 0))
 
         # Logs and Code Stream Row
         bottom_row = tk.Frame(left_col, bg=self.bg_color)
@@ -167,6 +204,10 @@ class TrackingDashboard:
         self.target_imei2_label.pack(anchor="w")
         self.target_serial_label = tk.Label(target_info_panel, text=f"SERIAL: {self.tracked_serial}", fg=self.muted_color, bg=self.panel_color, font=("Courier", 9))
         self.target_serial_label.pack(anchor="w")
+
+        # History Quick-View
+        self.history_panel = tk.LabelFrame(right_col, text="RECENT LOGS", fg=self.accent_color, bg=self.panel_color, font=("Arial", 9))
+        self.history_panel.pack(fill="x", pady=5)
 
         # Save Report Button
         tk.Button(right_col, text="💾 SAVE TRACKING REPORT", command=self.save_tracking_data, 
@@ -236,7 +277,25 @@ class TrackingDashboard:
         self.target_imei1_label.config(text=f"IMEI 1: {self.tracked_imei1}")
         self.target_imei2_label.config(text=f"IMEI 2: {self.tracked_imei2}")
         self.target_serial_label.config(text=f"SERIAL: {self.tracked_serial}")
+        
+        # Add to local history and play sound
+        self.history.append(f"{datetime.now().strftime('%H:%M')} - {self.tracked_serial}")
+        if len(self.history) > 3: self.history.pop(0)
+        
+        # Update history UI
+        for widget in self.history_panel.winfo_children(): widget.destroy()
+        for entry in self.history:
+            tk.Label(self.history_panel, text=entry, fg=self.muted_color, bg=self.panel_color, font=("Arial", 8)).pack(anchor="w")
+
+        winsound.Beep(1000, 200) # Frequency 1000Hz, duration 200ms
         messagebox.showinfo("Tracking Initiated", f"Tracking started for Serial: {self.tracked_serial}")
+
+    def toggle_satellite_view(self):
+        self.satellite_mode = not self.satellite_mode
+        if self.satellite_mode:
+            self.sat_btn.config(text="🛰 TACTICAL VIEW", bg=self.accent_color, fg="#000")
+        else:
+            self.sat_btn.config(text="📡 SATELLITE VIEW", bg=self.bg_color, fg=self.accent_color)
 
     def generate_blips(self):
         cx, cy = self.radar_center_x, self.radar_center_y # Center of the radar
@@ -256,25 +315,97 @@ class TrackingDashboard:
                 "active": False
             })
 
+    def transform_point(self, x, y):
+        """Applies scale, rotation, and offset to a coordinate point."""
+        cx, cy = self.radar_center_x, self.radar_center_y
+        # Shift, Scale and Offset
+        nx = (x - cx + self.map_offset_x) * self.map_scale
+        ny = (y - cy + self.map_offset_y) * self.map_scale
+        # Rotate point around center
+        rad = math.radians(self.map_rotation)
+        rx = nx * math.cos(rad) - ny * math.sin(rad)
+        ry = nx * math.sin(rad) + ny * math.cos(rad)
+        return rx + cx, ry + cy
+
+    def transform_list(self, coords):
+        """Transforms a flat list of [x1, y1, x2, y2...] coordinates."""
+        res = []
+        for i in range(0, len(coords), 2):
+            tx, ty = self.transform_point(coords[i], coords[i+1])
+            res.extend([tx, ty])
+        return res
+
     def draw_radar(self):
         cx, cy = self.radar_center_x, self.radar_center_y
+
+        # Set dynamic colors based on Satellite mode
+        if self.satellite_mode:
+            bg_fill = "#0b1a0e" # Dark forest green/earth
+            river_fill = "#1e3f66" # Deep water blue
+            road_fill = "#444444" # Asphalt grey
+            grid_fill = "#152515" # Very subtle earth grid
+            land_text = "#ffffff" # White text for better contrast
+            building_fill_color = "#666666" # Grey/brown for satellite buildings
+            building_outline_color = "#888888"
+        else:
+            bg_fill = self.panel_color
+            river_fill = self.muted_color
+            road_fill = self.muted_color
+            grid_fill = "#001a1a"
+            land_text = self.muted_color
+            building_fill_color = "#333333" # Dark grey for tactical buildings
+            building_outline_color = "#555555"
+
+        self.radar_canvas.config(bg=bg_fill)
         self.radar_canvas.delete("all")
         
-        # Draw Grid Lines (Map Style)
-        for i in range(0, 600, 40):
-            self.radar_canvas.create_line(i, 0, i, 400, fill="#001515", width=1)
-        for i in range(0, 400, 40):
-            self.radar_canvas.create_line(0, i, 600, i, fill="#001515", width=1)
+        # Draw Grid Lines (Rotating with Map)
+        grid_step = 60
+        for i in range(-600, 1200, grid_step):
+            p1 = self.transform_point(i, -600); p2 = self.transform_point(i, 1000)
+            self.radar_canvas.create_line(p1, p2, fill=grid_fill, width=1)
+            p3 = self.transform_point(-600, i); p4 = self.transform_point(1200, i)
+            self.radar_canvas.create_line(p3, p4, fill=grid_fill, width=1)
 
-        # Tactical Circles
-        for r in [50, 100, 150, 190]:
-            self.radar_canvas.create_oval(cx-r, cy-r, cx+r, cy+r, outline="#003333", width=1)
+        # Draw River Niger (Stylized and Transformed)
+        self.radar_canvas.create_line(self.transform_list(self.river_data), fill=river_fill, width=25 * self.map_scale, smooth=True)
+        rx, ry = self.transform_point(540, 50)
+        self.radar_canvas.create_text(rx, ry, text="RIVER NIGER", fill=self.accent_color, font=("Arial", int(8 * self.map_scale), "italic"))
 
-        # Draw African Cities Markers
-        for name, x, y in self.african_cities:
-            self.radar_canvas.create_rectangle(x-2, y-2, x+2, y+2, fill="#005555", outline="")
-            if random.random() > 0.9: # Text flickering effect
-                self.radar_canvas.create_text(x+5, y, text=name, fill="#004444", font=("Courier", 7), anchor="w")
+        # Draw Major Roads (Transformed)
+        self.radar_canvas.create_line(self.transform_list(self.road_nnebisi), fill=road_fill, width=3) 
+        self.radar_canvas.create_line(self.transform_list(self.road_summit), fill=road_fill, width=3) 
+
+        # Draw Buildings (only when zoomed in)
+        if self.map_scale > 1.2: # Threshold for showing buildings
+            for x, y, size in self.asaba_buildings:
+                tx, ty = self.transform_point(x, y)
+                scaled_size = size * self.map_scale
+                self.radar_canvas.create_rectangle(tx - scaled_size/2, ty - scaled_size/2,
+                                                   tx + scaled_size/2, ty + scaled_size/2,
+                                                   fill=building_fill_color, outline=building_outline_color, width=1)
+
+        # Draw Red Zones (Danger Areas)
+        for name, x, y, radius in self.red_zones:
+            tx, ty = self.transform_point(x, y)
+            tr = radius * self.map_scale
+            # Draw dashed danger perimeter
+            self.radar_canvas.create_oval(tx-tr, ty-tr, tx+tr, ty+tr, outline=self.danger_color, width=2, dash=(4, 4))
+            self.radar_canvas.create_text(tx, ty+tr+10, text=name, fill=self.danger_color, font=("Courier", 8, "bold"))
+
+        # Draw Pulsing GPS Signal at Target Position
+        tx, ty = self.transform_point(self.target_pos["x"], self.target_pos["y"])
+        pulse_color = self.accent_color
+        # Outer fading pulse
+        self.radar_canvas.create_oval(tx-self.pulse_size, ty-self.pulse_size, tx+self.pulse_size, ty+self.pulse_size, outline=pulse_color, width=1)
+        # Static center point
+        self.radar_canvas.create_oval(tx-3, ty-3, tx+3, ty+3, fill=self.danger_color, outline="")
+
+        # Draw Asaba Landmarks (Moving with map)
+        for name, x, y in self.asaba_landmarks:
+            tx, ty = self.transform_point(x, y)
+            self.radar_canvas.create_rectangle(tx-2, ty-2, tx+2, ty+2, fill=self.accent_color, outline="")
+            self.radar_canvas.create_text(tx+5, ty, text=name, fill=land_text, font=("Courier", 7, "bold"), anchor="w") # Always show landmark names
 
     def update_data(self):
         try:
@@ -284,6 +415,18 @@ class TrackingDashboard:
             # Update Clock
             self.clock_label.config(text=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             
+            # Randomize Map Transformation for "Search" effect
+            if random.random() > 0.96:
+                self.target_scale = random.uniform(0.8, 1.3)
+                self.rot_speed = random.choice([-0.4, -0.2, 0.2, 0.4])
+                self.map_offset_x = max(-80, min(80, self.map_offset_x + random.randint(-15, 15)))
+                self.map_offset_y = max(-80, min(80, self.map_offset_y + random.randint(-15, 15)))
+
+            # Smooth interpolation
+            self.pulse_size = (self.pulse_size + 2) % 40 # Animate GPS pulse
+            self.map_scale += (self.target_scale - self.map_scale) * 0.05
+            self.map_rotation += self.rot_speed
+
             # Update Fake Coords
             new_lat = 6.200891 + random.uniform(-0.02, 0.02)
             new_lon = 6.698627 + random.uniform(-0.02, 0.02)
@@ -302,36 +445,18 @@ class TrackingDashboard:
 
             # Update Radar Animation
             self.draw_radar()
-            self.angle = (self.angle + 4) % 360
-            rad = math.radians(self.angle)
-            x_end = cx + 190 * math.cos(rad)
-            y_end = cy - 190 * math.sin(rad)
             
             # Target Crosshair (The "Searching" Box)
-            tx, ty = self.target_pos["x"], self.target_pos["y"]
-            self.radar_canvas.create_rectangle(tx-15, ty-15, tx+15, ty+15, outline=self.accent_color, width=1)
+            # Map the tracking crosshair to the moving map
+            tx, ty = self.transform_point(self.target_pos["x"], self.target_pos["y"])
+            self.radar_canvas.create_rectangle(tx-15, ty-15, tx+15, ty+15, outline=self.danger_color, width=1)
             self.radar_canvas.create_line(tx-20, ty, tx+20, ty, fill=self.accent_color)
             self.radar_canvas.create_line(tx, ty-20, tx, ty+20, fill=self.accent_color)
-            self.radar_canvas.create_text(tx+20, ty-20, text="LOCKING...", fill=self.accent_color, font=("Courier", 8, "bold"))
             
-            # Sweep line
-            self.radar_canvas.create_line(cx, cy, x_end, y_end, fill=self.accent_color, width=2)
+            tracking_text = f"LOCKING...\nLAT: {new_lat:.4f}\nLON: {new_lon:.4f}"
+            self.radar_canvas.create_text(tx+25, ty-25, text=tracking_text, fill=self.accent_color, font=("Courier", 8, "bold"), anchor="nw")
             
-            # Update Blips
-            for blip in self.blips:
-                blip_angle = (math.degrees(math.atan2(cy - blip['y'], blip['x'] - cx)) + 360) % 360 # Ensure angle is positive
-                
-                angle_diff = abs(self.angle - blip_angle)
-                if angle_diff > 180: # Handle wrap-around for angles (e.g., 355 and 5 degrees are close)
-                    angle_diff = 360 - angle_diff
-
-                if angle_diff < 10: # Increased tolerance for detection
-                    blip['opacity'] = 255
-                
-                if blip['opacity'] > 0:
-                    color = f"#{blip['opacity']:02x}0000" # Red color for blips
-                    self.radar_canvas.create_oval(blip['x']-4, blip['y']-4, blip['x']+4, blip['y']+4, fill=color, outline="")
-                    blip['opacity'] -= 15 # Fade out faster
+            # Removed radar sweep and blips to focus purely on the map rotation
             
             # Update Signal Bar
             self.sig_canvas.delete("all")
@@ -363,6 +488,9 @@ class TrackingDashboard:
                 self.log_area.insert(tk.END, f"[{timestamp}] {current_event}\n")
                 self.log_area.see(tk.END)
                 
+                if random.random() > 0.9: # Occasional beep for log activity
+                    winsound.Beep(500, 50)
+
             if random.random() > 0.98:
                 self.threat_label.config(text=random.choice(["HIGH", "CRITICAL", "LOCKED"]))
             
