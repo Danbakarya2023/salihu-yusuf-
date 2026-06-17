@@ -1,11 +1,12 @@
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext, messagebox, ttk
 import random
 import os
 import math
 import socket
 import json
 import winsound  # Standard library for beeps on Windows
+import webbrowser
 from datetime import datetime
 
 class TrackingDashboard:
@@ -56,13 +57,31 @@ class TrackingDashboard:
 
         self.satellite_mode = False
         self.pulse_size = 0 # For live GPS pulse effect
+        self.tracking_active = False
+        self.current_lat = None
+        self.current_lon = None
+        self.history_counter = 0
         
-        self.river_data = [520, 0, 540, 100, 560, 250, 580, 400]
-        self.road_nnebisi = [0, 220, 550, 280]
-        self.road_summit = [320, 0, 320, 400]
+        self.river_data = [-1000, -500, 520, 0, 540, 100, 560, 250, 580, 400, 1500, 1000]
+        self.road_nnebisi = [-1000, 220, 1500, 280]
+        self.road_summit = [320, -1000, 320, 1500]
+
+        # Vehicle Simulation Data (id, road_type, pos 0-1, speed)
+        self.vehicles = []
+        for i in range(100):
+            v_type = random.choice(["CAR", "BIKE"])
+            self.vehicles.append({
+                "id": f"{v_type}-{i+1:02d}",
+                "road": random.choice(["nnebisi", "summit"]),
+                "pos": random.random(),
+                "speed": random.uniform(0.001, 0.005) * random.choice([1, -1]),
+                "type": v_type
+            })
 
         self.scan_x = 0 # Horizontal scanning line
         self.scan_dir = 5
+        self.blink_on = True
+        self.blink_counter = 0
 
         # Styles & Colors
         self.accent_color = "#00ffcc"
@@ -103,12 +122,52 @@ class TrackingDashboard:
             "Sony Xperia 5 IV - SN: 0P41T7R2B8"
         ]
 
+        self.setup_login()
+
+    def setup_login(self):
+        """Creates a tactical login overlay."""
+        self.login_container = tk.Frame(self.root, bg=self.bg_color)
+        self.login_container.pack(fill="both", expand=True)
+
+        login_box = tk.Frame(self.login_container, bg=self.panel_color, padx=40, pady=40, highlightbackground=self.accent_color, highlightthickness=1)
+        login_box.place(relx=0.5, rely=0.5, anchor="center")
+
+        tk.Label(login_box, text="🔐 SECURE ACCESS REQUIRED", fg=self.accent_color, bg=self.panel_color, font=("Impact", 18)).pack(pady=(0, 20))
+
+        tk.Label(login_box, text="USERNAME", fg=self.muted_color, bg=self.panel_color, font=("Arial", 9, "bold")).pack(anchor="w")
+        self.user_entry = tk.Entry(login_box, bg="#000", fg=self.accent_color, insertbackground=self.accent_color, relief="flat", width=30, font=("Courier", 12))
+        self.user_entry.pack(pady=(5, 15))
+        self.user_entry.insert(0, "admin")
+
+        tk.Label(login_box, text="PASSCODE", fg=self.muted_color, bg=self.panel_color, font=("Arial", 9, "bold")).pack(anchor="w")
+        self.pass_entry = tk.Entry(login_box, bg="#000", fg=self.accent_color, insertbackground=self.accent_color, relief="flat", width=30, font=("Courier", 12), show="*")
+        self.pass_entry.pack(pady=(5, 20))
+
+        btn_login = tk.Button(login_box, text="AUTHORIZE", command=self.verify_login, bg=self.accent_color, fg="#000", relief="flat", width=20, font=("Arial", 10, "bold"))
+        btn_login.pack()
+
+        self.login_status = tk.Label(login_box, text="Awaiting credentials...", fg=self.muted_color, bg=self.panel_color, font=("Arial", 8))
+        self.login_status.pack(pady=(15, 0))
+
+    def verify_login(self):
+        user = self.user_entry.get()
+        pwd = self.pass_entry.get()
+
+        if user == "admin" and pwd == "1234":
+            self.login_status.config(text="ACCESS GRANTED. INITIALIZING...", fg=self.accent_color)
+            winsound.Beep(800, 200)
+            self.root.after(1000, self.launch_main_app)
+        else:
+            self.login_status.config(text="INVALID CREDENTIALS!", fg=self.danger_color)
+            winsound.Beep(300, 400)
+
+    def launch_main_app(self):
+        self.login_container.destroy()
         self.generate_blips()
         self.setup_ui()
         self.update_data()
 
     def setup_ui(self):
-        # Header
         header = tk.Frame(self.root, bg=self.panel_color, pady=10, padx=20)
         header.pack(fill="x")
 
@@ -139,9 +198,13 @@ class TrackingDashboard:
                                  bg=self.bg_color, fg=self.accent_color, relief="flat", font=("Arial", 8, "bold"))
         self.sat_btn.place(relx=1.0, x=-10, y=10, anchor="ne")
 
+        self.map_link_btn = tk.Button(radar_panel, text="🌐 GLOBAL MAP", command=self.open_external_map, 
+                                      bg=self.bg_color, fg=self.accent_color, relief="flat", font=("Arial", 8, "bold"))
+        self.map_link_btn.place(relx=1.0, x=-130, y=10, anchor="ne")
+
         # Set background to panel_color for transparency effect
         self.radar_canvas = tk.Canvas(radar_panel, width=self.radar_canvas_width, height=self.radar_canvas_height, bg=self.panel_color, highlightthickness=0)
-        self.radar_canvas.pack(pady=(35, 0))
+        self.radar_canvas.pack(fill="both", expand=True, padx=2, pady=(35, 2))
 
         # Logs and Code Stream Row
         bottom_row = tk.Frame(left_col, bg=self.bg_color)
@@ -194,6 +257,7 @@ class TrackingDashboard:
         self.serial_entry.insert(0, "SN1234567890") # Placeholder
 
         tk.Button(input_panel, text="START TRACKING", command=self.start_tracking, bg=self.accent_color, fg="#000", relief="flat", width=25, font=("Arial", 9, "bold")).pack(pady=10)
+        tk.Button(input_panel, text="STOP TRACKING", command=self.stop_tracking, bg=self.danger_color, fg="white", relief="flat", width=25, font=("Arial", 9, "bold")).pack(pady=5)
 
         # Display of Tracked Device Info
         target_info_panel = tk.LabelFrame(right_col, text="TARGET DEVICE INFO", fg=self.accent_color, bg=self.panel_color, font=("Arial", 10, "bold"))
@@ -208,6 +272,24 @@ class TrackingDashboard:
         # History Quick-View
         self.history_panel = tk.LabelFrame(right_col, text="RECENT LOGS", fg=self.accent_color, bg=self.panel_color, font=("Arial", 9))
         self.history_panel.pack(fill="x", pady=5)
+
+        # Coordinate History Table
+        coord_history_frame = tk.LabelFrame(right_col, text="📍 COORD HISTORY", fg=self.accent_color, bg=self.panel_color, font=("Arial", 10, "bold"))
+        coord_history_frame.pack(fill="x", pady=10)
+
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("Treeview", background="#000", foreground=self.accent_color, fieldbackground="#000", borderwidth=0, font=("Courier", 8))
+        style.configure("Treeview.Heading", background=self.panel_color, foreground=self.accent_color, font=("Arial", 8, "bold"))
+        
+        self.coord_tree = ttk.Treeview(coord_history_frame, columns=("Time", "Lat", "Lon"), show='headings', height=5)
+        self.coord_tree.heading("Time", text="TIME")
+        self.coord_tree.heading("Lat", text="LAT")
+        self.coord_tree.heading("Lon", text="LON")
+        self.coord_tree.column("Time", width=60, anchor="center")
+        self.coord_tree.column("Lat", width=85, anchor="center")
+        self.coord_tree.column("Lon", width=85, anchor="center")
+        self.coord_tree.pack(fill="x", padx=5, pady=5)
 
         # Save Report Button
         tk.Button(right_col, text="💾 SAVE TRACKING REPORT", command=self.save_tracking_data, 
@@ -250,6 +332,13 @@ class TrackingDashboard:
         tk.Button(right_col, text="COPY TARGET HOTLINE", command=self.copy_contact, bg=self.accent_color, fg="#000", relief="flat", width=25, font=("Arial", 9, "bold")).pack(pady=10)
         tk.Button(right_col, text="TERMINATE CONNECTION", command=lambda: messagebox.showerror("Access Denied", "Only administrators can terminate"), bg=self.danger_color, fg="white", relief="flat", width=25, font=("Arial", 9, "bold")).pack()
 
+    def open_external_map(self):
+        if self.tracking_active and self.current_lat is not None:
+            url = f"https://www.google.com/maps/search/?api=1&query={self.current_lat},{self.current_lon}"
+        else:
+            url = "https://www.google.com/maps/search/?api=1&query=Asaba,+Nigeria"
+        webbrowser.open(url)
+
     def get_local_ip(self):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -271,6 +360,7 @@ class TrackingDashboard:
         messagebox.showinfo("Report Saved", f"Tracking report has been saved to: {filename}")
 
     def start_tracking(self):
+        self.tracking_active = True
         self.tracked_imei1 = self.imei1_entry.get() if self.imei1_entry.get() else "N/A"
         self.tracked_imei2 = self.imei2_entry.get() if self.imei2_entry.get() else "N/A"
         self.tracked_serial = self.serial_entry.get() if self.serial_entry.get() else "N/A"
@@ -289,6 +379,19 @@ class TrackingDashboard:
 
         winsound.Beep(1000, 200) # Frequency 1000Hz, duration 200ms
         messagebox.showinfo("Tracking Initiated", f"Tracking started for Serial: {self.tracked_serial}")
+
+    def stop_tracking(self):
+        self.tracking_active = False
+        self.tracked_imei1 = "---"
+        self.tracked_imei2 = "---"
+        self.tracked_serial = "---"
+        self.target_imei1_label.config(text=f"IMEI 1: {self.tracked_imei1}")
+        self.target_imei2_label.config(text=f"IMEI 2: {self.tracked_imei2}")
+        self.target_serial_label.config(text=f"SERIAL: {self.tracked_serial}")
+        self.current_lat = None
+        self.current_lon = None
+        winsound.Beep(400, 300)
+        messagebox.showwarning("Tracking Stopped", "Tracking sequence has been terminated.")
 
     def toggle_satellite_view(self):
         self.satellite_mode = not self.satellite_mode
@@ -336,6 +439,15 @@ class TrackingDashboard:
         return res
 
     def draw_radar(self):
+        # Update dynamic dimensions based on actual canvas size to fill the space
+        cw = self.radar_canvas.winfo_width()
+        ch = self.radar_canvas.winfo_height()
+        if cw > 1 and ch > 1:
+            self.radar_canvas_width = cw
+            self.radar_canvas_height = ch
+            self.radar_center_x = cw / 2
+            self.radar_center_y = ch / 2
+
         cx, cy = self.radar_center_x, self.radar_center_y
 
         # Set dynamic colors based on Satellite mode
@@ -359,12 +471,18 @@ class TrackingDashboard:
         self.radar_canvas.config(bg=bg_fill)
         self.radar_canvas.delete("all")
         
+        # --- BLINKING LIVE INDICATOR ---
+        if self.blink_on:
+            self.radar_canvas.create_oval(10, 10, 22, 22, fill=self.danger_color, outline="")
+        # Text stays visible but maybe changes color slightly or stays constant
+        self.radar_canvas.create_text(28, 16, text="LIVE SIGNAL FEED", fill=self.danger_color if self.blink_on else self.muted_color, font=("Courier", 10, "bold"), anchor="w")
+
         # Draw Grid Lines (Rotating with Map)
         grid_step = 60
-        for i in range(-600, 1200, grid_step):
-            p1 = self.transform_point(i, -600); p2 = self.transform_point(i, 1000)
+        for i in range(-1200, 1800, grid_step):
+            p1 = self.transform_point(i, -1200); p2 = self.transform_point(i, 1500)
             self.radar_canvas.create_line(p1, p2, fill=grid_fill, width=1)
-            p3 = self.transform_point(-600, i); p4 = self.transform_point(1200, i)
+            p3 = self.transform_point(-1200, i); p4 = self.transform_point(1800, i)
             self.radar_canvas.create_line(p3, p4, fill=grid_fill, width=1)
 
         # Draw River Niger (Stylized and Transformed)
@@ -394,18 +512,38 @@ class TrackingDashboard:
             self.radar_canvas.create_text(tx, ty+tr+10, text=name, fill=self.danger_color, font=("Courier", 8, "bold"))
 
         # Draw Pulsing GPS Signal at Target Position
-        tx, ty = self.transform_point(self.target_pos["x"], self.target_pos["y"])
-        pulse_color = self.accent_color
-        # Outer fading pulse
-        self.radar_canvas.create_oval(tx-self.pulse_size, ty-self.pulse_size, tx+self.pulse_size, ty+self.pulse_size, outline=pulse_color, width=1)
-        # Static center point
-        self.radar_canvas.create_oval(tx-3, ty-3, tx+3, ty+3, fill=self.danger_color, outline="")
+        if self.tracking_active:
+            tx, ty = self.transform_point(self.target_pos["x"], self.target_pos["y"])
+            pulse_color = self.accent_color
+            # Outer fading pulse
+            self.radar_canvas.create_oval(tx-self.pulse_size, ty-self.pulse_size, tx+self.pulse_size, ty+self.pulse_size, outline=pulse_color, width=1)
+            # Static center point
+            self.radar_canvas.create_oval(tx-3, ty-3, tx+3, ty+3, fill=self.danger_color, outline="")
 
         # Draw Asaba Landmarks (Moving with map)
         for name, x, y in self.asaba_landmarks:
             tx, ty = self.transform_point(x, y)
             self.radar_canvas.create_rectangle(tx-2, ty-2, tx+2, ty+2, fill=self.accent_color, outline="")
             self.radar_canvas.create_text(tx+5, ty, text=name, fill=land_text, font=("Courier", 7, "bold"), anchor="w") # Always show landmark names
+
+        # Draw Animated Vehicles
+        for v in self.vehicles:
+            if v["road"] == "nnebisi":
+                # Interpolate along Nnebisi line
+                vx = self.road_nnebisi[0] + (self.road_nnebisi[2] - self.road_nnebisi[0]) * v["pos"]
+                vy = self.road_nnebisi[1] + (self.road_nnebisi[3] - self.road_nnebisi[1]) * v["pos"]
+            else:
+                # Interpolate along Summit line
+                vx = self.road_summit[0] + (self.road_summit[2] - self.road_summit[0]) * v["pos"]
+                vy = self.road_summit[1] + (self.road_summit[3] - self.road_summit[1]) * v["pos"]
+            
+            vtx, vty = self.transform_point(vx, vy)
+            v_color = "#ffff00" if v["type"] == "CAR" else "#00bfff"
+            v_size = 3 if v["type"] == "CAR" else 2
+            
+            self.radar_canvas.create_oval(vtx-v_size, vty-v_size, vtx+v_size, vty+v_size, fill=v_color, outline="")
+            if self.map_scale > 1.1: # Only show ID when zoomed in
+                self.radar_canvas.create_text(vtx, vty-8, text=v["id"], fill=v_color, font=("Courier", 6))
 
     def update_data(self):
         try:
@@ -415,46 +553,74 @@ class TrackingDashboard:
             # Update Clock
             self.clock_label.config(text=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             
+            # Update Blink State (Toggles every 500ms if after(100))
+            self.blink_counter += 1
+            if self.blink_counter >= 5:
+                self.blink_on = not self.blink_on
+                self.blink_counter = 0
+
             # Randomize Map Transformation for "Search" effect
-            if random.random() > 0.96:
-                self.target_scale = random.uniform(0.8, 1.3)
-                self.rot_speed = random.choice([-0.4, -0.2, 0.2, 0.4])
-                self.map_offset_x = max(-80, min(80, self.map_offset_x + random.randint(-15, 15)))
-                self.map_offset_y = max(-80, min(80, self.map_offset_y + random.randint(-15, 15)))
+            if random.random() > 0.93:
+                self.target_scale = random.uniform(0.6, 1.8)
+                self.rot_speed = random.choice([-0.6, -0.3, 0.3, 0.6])
+                # Wider wandering range for "yawo a ko ina" effect
+                self.map_offset_x = max(-400, min(400, self.map_offset_x + random.randint(-40, 40)))
+                self.map_offset_y = max(-300, min(300, self.map_offset_y + random.randint(-40, 40)))
 
             # Smooth interpolation
-            self.pulse_size = (self.pulse_size + 2) % 40 # Animate GPS pulse
+            if self.tracking_active:
+                self.pulse_size = (self.pulse_size + 2) % 40 # Animate GPS pulse
+            else:
+                self.pulse_size = 0
+
             self.map_scale += (self.target_scale - self.map_scale) * 0.05
             self.map_rotation += self.rot_speed
 
-            # Update Fake Coords
-            new_lat = 6.200891 + random.uniform(-0.02, 0.02)
-            new_lon = 6.698627 + random.uniform(-0.02, 0.02)
-            
-            self.lat_label.config(text=f"LAT: {new_lat:.5f}")
-            self.lon_label.config(text=f"LON: {new_lon:.5f}")
-            self.battery_label.config(text=f"Battery: {random.randint(20, 99)}%")
+            # Update Fake Coords and Target Movement
+            if self.tracking_active:
+                self.current_lat = 6.200891 + random.uniform(-0.02, 0.02)
+                self.current_lon = 6.698627 + random.uniform(-0.02, 0.02)
+                self.lat_label.config(text=f"LAT: {self.current_lat:.5f}")
+                self.lon_label.config(text=f"LON: {self.current_lon:.5f}")
+                self.battery_label.config(text=f"Battery: {random.randint(20, 99)}%")
 
-            # Update Target Movement (Searching effect)
-            if random.random() > 0.8:
-                self.target_pos["x"] += random.randint(-15, 15)
-                self.target_pos["y"] += random.randint(-15, 15)
-                # Keep within bounds
-                self.target_pos["x"] = max(50, min(550, self.target_pos["x"]))
-                self.target_pos["y"] = max(50, min(350, self.target_pos["y"]))
+                # Update Target Movement (Searching effect)
+                if random.random() > 0.7:
+                    self.target_pos["x"] += random.randint(-30, 30)
+                    self.target_pos["y"] += random.randint(-30, 30)
+                    self.target_pos["x"] = max(-100, min(700, self.target_pos["x"]))
+                    self.target_pos["y"] = max(-100, min(500, self.target_pos["y"]))
+
+                # Target Crosshair (The "Searching" Box)
+                tx, ty = self.transform_point(self.target_pos["x"], self.target_pos["y"])
+                self.radar_canvas.create_rectangle(tx-15, ty-15, tx+15, ty+15, outline=self.danger_color, width=1)
+                self.radar_canvas.create_line(tx-20, ty, tx+20, ty, fill=self.accent_color)
+                self.radar_canvas.create_line(tx, ty-20, tx, ty+20, fill=self.accent_color)
+                
+                tracking_text = f"LOCKING...\nLAT: {self.current_lat:.4f}\nLON: {self.current_lon:.4f}"
+                self.radar_canvas.create_text(tx+25, ty-25, text=tracking_text, fill=self.accent_color, font=("Courier", 8, "bold"), anchor="nw")
+                
+                # Update History Table every ~3 seconds (30 * 100ms)
+                self.history_counter += 1
+                if self.history_counter >= 30:
+                    ts = datetime.now().strftime("%H:%M:%S")
+                    self.coord_tree.insert("", 0, values=(ts, f"{self.current_lat:.4f}", f"{self.current_lon:.4f}"))
+                    self.history_counter = 0
+                    if len(self.coord_tree.get_children()) > 10:
+                        self.coord_tree.delete(self.coord_tree.get_children()[-1])
+            else:
+                self.lat_label.config(text="LAT: --")
+                self.lon_label.config(text="LON: --")
+                self.battery_label.config(text="Battery: --")
+
+            # Update Vehicle Positions
+            for v in self.vehicles:
+                v["pos"] += v["speed"]
+                if v["pos"] > 1.0: v["pos"] = 0.0
+                if v["pos"] < 0.0: v["pos"] = 1.0
 
             # Update Radar Animation
             self.draw_radar()
-            
-            # Target Crosshair (The "Searching" Box)
-            # Map the tracking crosshair to the moving map
-            tx, ty = self.transform_point(self.target_pos["x"], self.target_pos["y"])
-            self.radar_canvas.create_rectangle(tx-15, ty-15, tx+15, ty+15, outline=self.danger_color, width=1)
-            self.radar_canvas.create_line(tx-20, ty, tx+20, ty, fill=self.accent_color)
-            self.radar_canvas.create_line(tx, ty-20, tx, ty+20, fill=self.accent_color)
-            
-            tracking_text = f"LOCKING...\nLAT: {new_lat:.4f}\nLON: {new_lon:.4f}"
-            self.radar_canvas.create_text(tx+25, ty-25, text=tracking_text, fill=self.accent_color, font=("Courier", 8, "bold"), anchor="nw")
             
             # Removed radar sweep and blips to focus purely on the map rotation
             
