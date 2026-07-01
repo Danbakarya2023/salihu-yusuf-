@@ -1,0 +1,233 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Service Report</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --accent: #0f766e;
+      --accent-soft: #d1fae5;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, var(--bg) 100%);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .report {
+      width: min(92%, 760px);
+      margin: 20px auto;
+      background: var(--panel);
+      padding: 30px;
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #14b8a6);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    .header .site {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      color: #14532d;
+      font-weight: 700;
+      text-align: center;
+      font-size: 17px;
+      letter-spacing: 0.4px;
+    }
+
+    .info-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .box {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fbfdff;
+    }
+
+    .title {
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+
+    th, td {
+      padding: 11px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    tr:last-child td, tr:last-child th {
+      border-bottom: none;
+    }
+
+    .note {
+      margin: 0;
+      line-height: 1.7;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .price {
+      margin-top: 18px;
+      padding: 16px;
+      text-align: center;
+      background: linear-gradient(135deg, #0f766e, #14b8a6);
+      color: white;
+      border-radius: 14px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      .report { padding: 20px; }
+      .header { flex-direction: column; align-items: flex-start; }
+      .info-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="report">
+    <div class="header">
+      <div class="brand">
+        <div class="brand-badge">SR</div>
+        <div>
+          <h1>DEVICE SERVICE REPORT</h1>
+          <div class="site">www.frpkingserver.com</div>
+        </div>
+      </div>
+      <div class="site">Service Record</div>
+    </div>
+
+    <div class="status">SERVICE PROCESS COMPLETED</div>
+
+    <div class="info-row">
+      <div class="box">
+        <div class="title">Previous Device Information</div>
+        <table>
+          <tr>
+            <th>Field</th>
+            <th>Value</th>
+          </tr>
+          <tr>
+            <td>IMEI 1</td>
+            <td>359103256233031 /14</td>
+          </tr>
+          <tr>
+            <td>IMEI 2</td>
+            <td>350000296233054 /14</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="box">
+        <div class="title">Updated Device Information</div>
+        <table>
+          <tr>
+            <th>Field</th>
+            <th>Value</th>
+          </tr>
+          <tr>
+            <td>IMEI 1</td>
+            <td>350000256233066 /14</td>
+          </tr>
+          <tr>
+            <td>IMEI 2</td>
+            <td>359708296233039 /14</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="box" style="margin-top: 18px;">
+      <div class="title">Service Note</div>
+      <p class="note">
+        Device information record has been updated in the service record system.
+        Please verify all device details with the authorized service provider.
+      </p>
+    </div>
+
+    <div class="price">Service Fee: $13 USD</div>
+
+    <div class="footer"> official service documentation</div>
+  </div>
+</body>
+</html>
